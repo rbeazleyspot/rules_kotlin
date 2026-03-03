@@ -1,5 +1,10 @@
+load(":associate_java_compile_tests.bzl", associate_test_suite = "test_suite")
 load(":rule_tests.bzl", "test_suite")
 
 test_suite(
     name = "rules_tests",
+)
+
+associate_test_suite(
+    name = "associate_java_compile_tests",
 )
