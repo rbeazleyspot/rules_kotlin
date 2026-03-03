@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.base
 
 internal class ElectricHeater : Heater {
   override var isHot: Boolean = false

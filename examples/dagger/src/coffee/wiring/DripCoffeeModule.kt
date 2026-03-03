@@ -13,10 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.wiring
 
-internal interface Heater {
-  val isHot: Boolean
-  fun on()
-  fun off()
+import coffee.base.ElectricHeater
+import coffee.base.Heater
+import dagger.Module
+import dagger.Provides
+import javax.inject.Singleton
+
+@Module(includes = arrayOf(PumpModule::class))
+internal class DripCoffeeModule {
+  @Provides
+  @Singleton
+  fun provideHeater(): Heater {
+    return ElectricHeater()
+  }
 }

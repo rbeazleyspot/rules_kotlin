@@ -13,31 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.wiring
 
-import generated.GeneratedModule
-import dagger.Component
-import kotlinx.coroutines.runBlocking
-import tea.TeaPot
-import chai.ChaiCup
-import javax.inject.Singleton
+import coffee.base.Pump
+import coffee.base.Thermosiphon
+import dagger.Binds
+import dagger.Module
 
-class CoffeeApp {
-  @Singleton
-  @Component(modules = [DripCoffeeModule::class, GeneratedModule::class])
-  interface CoffeeShop {
-    fun maker(): CoffeeMaker
-  }
-
-  companion object {
-    @JvmStatic
-    fun main(args: Array<String>) {
-      if (TeaPot.isEmpty() && ChaiCup.isEmpty()) {
-        val coffeeShop = DaggerCoffeeApp_CoffeeShop.builder().build()
-        runBlocking {
-          coffeeShop.maker().brew()
-        }
-      }
-    }
-  }
+@Module
+internal abstract class PumpModule {
+  @Binds
+  internal abstract fun providePump(pump: Thermosiphon): Pump
 }

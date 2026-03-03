@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.base
 
-internal interface Pump {
-  fun pump()
+internal interface Heater {
+  val isHot: Boolean
+  fun on()
+  fun off()
 }

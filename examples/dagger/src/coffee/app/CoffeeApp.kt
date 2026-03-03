@@ -13,17 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.app
 
-import dagger.Module
-import dagger.Provides
-import javax.inject.Singleton
+import coffee.wiring.DaggerCoffeeShop
+import kotlinx.coroutines.runBlocking
+import tea.TeaPot
+import chai.ChaiCup
 
-@Module(includes = arrayOf(PumpModule::class))
-internal class DripCoffeeModule {
-  @Provides
-  @Singleton
-  fun provideHeater(): Heater {
-    return ElectricHeater()
+class CoffeeApp {
+  companion object {
+    @JvmStatic
+    fun main(args: Array<String>) {
+      if (TeaPot.isEmpty() && ChaiCup.isEmpty()) {
+        val coffeeShop = DaggerCoffeeShop.builder().build()
+        runBlocking {
+          coffeeShop.maker().brew()
+        }
+      }
+    }
   }
 }

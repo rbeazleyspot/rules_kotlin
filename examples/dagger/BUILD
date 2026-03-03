@@ -1,5 +1,3 @@
-load("@rules_java//java:java_binary.bzl", "java_binary")
-
 # Copyright 2018 The Bazel Authors. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,96 +12,14 @@ load("@rules_java//java:java_binary.bzl", "java_binary")
 # See the License for the specific language governing permissions and
 # limitations under the License.
 load("@rules_kotlin//kotlin:core.bzl", "define_kt_toolchain")
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 
 package(default_visibility = ["//visibility:private"])
 
-# Generate a srcjar to validate intellij plugin correctly attaches it.
-genrule(
-    name = "tea_lib_src",
-    outs = ["tea_lib_src.srcjar"],
-    cmd = """
-cat << EOF > TeaPot.kt
-package tea
-object TeaPot {
-    fun isEmpty() = true
-}
-EOF
-$(JAVABASE)/bin/jar -cf $@ TeaPot.kt
-rm TeaPot.kt
-""",
-    toolchains = ["@bazel_tools//tools/jdk:current_host_java_runtime"],
-)
-
-genrule(
-    name = "chai_lib_src",
-    outs = ["chai_lib_src.srcjar"],
-    cmd = """
-cat << EOF > ChaiCup.kt
-package chai
-object ChaiCup {
-    fun isEmpty() = true
-}
-EOF
-$(JAVABASE)/bin/jar -cf $@ ChaiCup.kt
-rm ChaiCup.kt
-""",
-    toolchains = ["@bazel_tools//tools/jdk:current_host_java_runtime"],
-)
-
-genrule(
-    name = "genereated_module_src",
-    outs = ["genarated_module_src.srcjar"],
-    cmd = """
-cat << EOF > GeneratedModule.kt
-package generated
-
-import dagger.Provides
-import dagger.Module
-
-@Module
-object GeneratedModule {
-    @Provides
-    fun provideString() = "Hello Coffee"
-}
-EOF
-$(JAVABASE)/bin/jar -cf $@ GeneratedModule.kt
-rm GeneratedModule.kt
-""",
-    toolchains = ["@bazel_tools//tools/jdk:current_host_java_runtime"],
-)
-
-kt_jvm_library(
-    name = "generated_lib",
-    srcs = [":genereated_module_src"],
-    deps = [
-        "//third_party:dagger",
-    ],
-)
-
-kt_jvm_library(
-    name = "coffee_lib",
-    srcs = glob(["src/**"]) + [
-        # Adding a file ending with .srcjar is how code generation patterns are implemented.
-        ":tea_lib_src",
-        ":chai_lib_src",
-    ],
-    deps = [
-        ":generated_lib",
-        "//third_party:dagger",
-        "@maven_rules_kotlin_example//:org_jetbrains_kotlinx_kotlinx_coroutines_core",
-    ],
-)
-
-java_binary(
-    name = "coffee_app",
-    main_class = "coffee.CoffeeApp",
-    visibility = ["//visibility:public"],
-    runtime_deps = [":coffee_lib"],
-)
-
 define_kt_toolchain(
     name = "kotlin_toolchain",
-    api_version = "2.0",
-    language_version = "2.0",
+    api_version = "2.1",
+    experimental_remove_private_classes_in_abi_jars = True,
+    experimental_treat_internal_as_private_in_abi_jars = True,
+    experimental_use_abi_jars = True,
+    language_version = "2.1",
 )

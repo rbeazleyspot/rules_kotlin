@@ -13,28 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package coffee
+package coffee.base
 
-import dagger.Lazy
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-class CoffeeMaker @Inject internal constructor(
-  // Create a possibly costly heater only when we use it.
-  private val heater: Lazy<Heater>,
-  private val pump: Pump,
-  private val string: String
-) {
+internal class Thermosiphon @Inject
+constructor(private val heater: Heater) : Pump {
 
-  suspend fun brew() {
-    // this function is async to verify intellij support for coroutines.
-    withContext(Dispatchers.Default) {
-      heater.get().on()
-      pump.pump()
-      println(" [_]P coffee! [_]P ")
-      println(string)
-      heater.get().off()
+  override fun pump() {
+    if (heater.isHot) {
+      println("=> => pumping => =>")
     }
   }
 }
