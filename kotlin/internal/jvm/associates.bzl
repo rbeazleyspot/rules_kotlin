@@ -63,22 +63,34 @@ def _get_associates(ctx, toolchains, associates):
         return struct(
             module_name = _utils.derive_module_name(ctx),
             jars = depset(),
-            abi_jar_set = _sets.make(),
             dep_infos = [],
+            compile_dep_infos = [],
         )
     elif ctx.attr.module_name:
         fail("If associates have been set then module_name cannot be provided")
     else:
         jars = []
-        abi_jar_set = _sets.make()
         module_names = []
         java_infos = []
+        compile_java_infos = []
         for a in associates:
             jar_bundle = _collect_associates(ctx = ctx, toolchains = toolchains, associate = a)
             jars.append(jar_bundle.jars)
-            abi_jar_set = _sets.union(abi_jar_set, jar_bundle.abi_jars_set)
             module_names.append(a[_KtJvmInfo].module_name)
             java_infos.append(_java_info(a))
+
+            # When ABI jars have internal symbols stripped, create synthetic JavaInfos
+            # exposing full class jars for compilation. This allows both kotlinc and
+            # java_common.compile() to resolve internal symbols from associates.
+            if _sets.to_list(jar_bundle.abi_jars_set):
+                for java_output in a[JavaInfo].java_outputs:
+                    compile_java_infos.append(JavaInfo(
+                        output_jar = java_output.class_jar,
+                        compile_jar = java_output.class_jar,
+                        deps = [_java_info(a)],
+                    ))
+            else:
+                compile_java_infos.append(_java_info(a))
         module_names = _sets.to_list(_sets.make(module_names))
 
         if len(module_names) > 1:
@@ -90,9 +102,9 @@ def _get_associates(ctx, toolchains, associates):
             fail("Error in rules - a KtJvmInfo was found which did not have a module_name")
         return struct(
             jars = depset(transitive = jars),
-            abi_jar_set = abi_jar_set,
             module_name = module_names[0],
             dep_infos = java_infos,
+            compile_dep_infos = compile_java_infos,
         )
 
 associate_utils = struct(

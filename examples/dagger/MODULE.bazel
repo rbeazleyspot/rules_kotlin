@@ -3,10 +3,9 @@ module(name = "dagger-example")
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "rules_java", version = "8.9.0")
 bazel_dep(name = "rules_kotlin", version = "2.3.0")
-archive_override(
+local_path_override(
     module_name = "rules_kotlin",
-    integrity = "sha256-bQCGIvwVvFb566PuvvKK9jq/DQe5fLOXFAHnptfBUic=",
-    urls = ["https://github.com/bazelbuild/rules_kotlin/releases/download/v2.3.0/rules_kotlin-v2.3.0.tar.gz"],
+    path = "../..",
 )
 
 bazel_dep(name = "rules_jvm_external", version = "6.10")
