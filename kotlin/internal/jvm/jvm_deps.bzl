@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-load("@bazel_skylib//lib:sets.bzl", _sets = "sets")
 load(
     "@rules_java//java:defs.bzl",
     "JavaInfo",
@@ -28,38 +27,45 @@ def _jvm_deps(ctx, toolchains, associate_deps, deps = [], deps_java_infos = [], 
         toolchains = toolchains,
         associates = associate_deps,
     )
-    dep_infos = (
+
+    non_associate_dep_infos = (
         deps_java_infos +
         [_java_info(d) for d in deps] +
-        associates.dep_infos +
         [toolchains.kt.jvm_stdlibs]
     )
+
+    # dep_infos uses original associate JavaInfos — for output JavaInfo propagation
+    # to downstream targets (preserves ABI jars in the transitive closure).
+    dep_infos = non_associate_dep_infos + associates.dep_infos
+
+    # compile_dep_infos uses patched associate JavaInfos — when ABI stripping is
+    # active, these expose full class jars so both kotlinc and java_common.compile()
+    # can resolve internal symbols from associates.
+    compile_dep_infos = non_associate_dep_infos + associates.compile_dep_infos
 
     # Reduced classpath, exclude transitive deps from compilation
     if (toolchains.kt.experimental_prune_transitive_deps and
         not "kt_experimental_prune_transitive_deps_incompatible" in ctx.attr.tags):
         transitive = [
             d.compile_jars
-            for d in dep_infos
+            for d in compile_dep_infos
         ]
     else:
         transitive = [
             d.compile_jars
-            for d in dep_infos
+            for d in compile_dep_infos
         ] + [
             d.transitive_compile_time_jars
-            for d in dep_infos
+            for d in compile_dep_infos
         ]
-
-    compile_depset_list = depset(transitive = transitive + [associates.jars]).to_list()
-    compile_depset_list_filtered = [jar for jar in compile_depset_list if not _sets.contains(associates.abi_jar_set, jar)]
 
     return struct(
         module_name = associates.module_name,
         deps = dep_infos,
+        compile_dep_infos = compile_dep_infos,
         exports = [_java_info(d) for d in exports],
         associate_jars = associates.jars,
-        compile_jars = depset(direct = compile_depset_list_filtered),
+        compile_jars = depset(transitive = transitive),
         runtime_deps = [_java_info(d) for d in runtime_deps],
     )
 
