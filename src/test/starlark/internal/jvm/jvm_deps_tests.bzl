@@ -96,11 +96,11 @@ def _strict_abi_test_impl(env, target):
     classpath.contains(_file(env.ctx.attr.direct_dep_abi_jar).short_path)
     classpath.not_contains(_file(env.ctx.attr.direct_dep_jar).short_path)
 
-    # but FULL FAT associate jars and not the ABI associate jar
+    # Associate class jars SHOULD be in classpath so kotlinc can see internal symbols.
+    # Note: ABI jars may also appear via the non-associate dep path (associate is both
+    # an associate and a direct dep), but this is harmless since the class jar is a superset.
     classpath.contains(_file(env.ctx.attr.associate_jar).short_path)
     classpath.contains(_file(env.ctx.attr.associate_jar2).short_path)
-    classpath.not_contains(_file(env.ctx.attr.associate_abi_jar).short_path)
-    classpath.not_contains(_file(env.ctx.attr.associate_abi_jar2).short_path)
 
 def _fat_abi_test_impl(env, target):
     arrangment = _setup(env, target)
@@ -179,9 +179,8 @@ def _transitive_from_exports_test_impl(env, target):
     classpath.contains(_file(env.ctx.attr.direct_dep_abi_jar).short_path)
     classpath.not_contains(_file(env.ctx.attr.direct_dep_jar).short_path)
 
-    # but FULL FAT associate jars and not the ABI associate jar
+    # Associate class jars SHOULD be in classpath so kotlinc can see internal symbols.
     classpath.contains(_file(env.ctx.attr.associate_jar).short_path)
-    classpath.not_contains(_file(env.ctx.attr.associate_abi_jar).short_path)
 
 def _transitive_from_associates_test_impl(env, target):
     ##
@@ -435,6 +434,138 @@ def _sourceless_dep_propagation_test(name):
         target = name + "_subject",
     )
 
+def _compile_dep_infos_has_class_jars_with_abi_stripping_test_impl(env, target):
+    """When ABI stripping is active, compile_dep_infos should expose class jars for associates.
+
+    This ensures java_common.compile() can resolve internal symbols from associates
+    (e.g. Dagger components referencing internal classes in associate targets).
+    """
+    arrangment = _setup(env, target)
+
+    strict_abi_configured_toolchains = struct(
+        kt = struct(
+            experimental_remove_private_classes_in_abi_jars = True,
+            experimental_prune_transitive_deps = True,
+            experimental_strict_associate_dependencies = True,
+            jvm_stdlibs = JavaInfo(
+                compile_jar = _file(env.ctx.attr.jvm_jar),
+                output_jar = _file(env.ctx.attr.jvm_jar),
+            ),
+        ),
+    )
+
+    result = _jvm_deps_utils.jvm_deps(
+        ctx = arrangment.fake_ctx,
+        toolchains = strict_abi_configured_toolchains,
+        associate_deps = arrangment.associate_deps,
+        deps = arrangment.direct_deps,
+    )
+
+    # compile_dep_infos should contain patched JavaInfos for associates
+    # where compile_jars point to class jars (not ABI jars).
+    # Note: ABI jars may also appear via non-associate dep entries (the associate
+    # is commonly in both deps and associates), but the important thing is that
+    # at least one JavaInfo entry exposes the full class jar as its compile_jar.
+    associate_jar_path = _file(env.ctx.attr.associate_jar).short_path
+    associate_jar2_path = _file(env.ctx.attr.associate_jar2).short_path
+
+    found_class_jar1 = False
+    found_class_jar2 = False
+    for info in result.compile_dep_infos:
+        for jar in info.compile_jars.to_list():
+            if jar.short_path == associate_jar_path:
+                found_class_jar1 = True
+            if jar.short_path == associate_jar2_path:
+                found_class_jar2 = True
+
+    # Associate class jars SHOULD be in compile_dep_infos
+    env.expect.that_bool(found_class_jar1).equals(True)
+    env.expect.that_bool(found_class_jar2).equals(True)
+
+def _compile_dep_infos_has_class_jars_with_abi_stripping_test(name):
+    _abi_test(name, _compile_dep_infos_has_class_jars_with_abi_stripping_test_impl)
+
+def _compile_dep_infos_passthrough_without_abi_stripping_test_impl(env, target):
+    """Without ABI stripping, compile_dep_infos should use original JavaInfos (no patching)."""
+    arrangment = _setup(env, target)
+
+    fat_abi_configured_toolchains = struct(
+        kt = struct(
+            experimental_remove_private_classes_in_abi_jars = False,
+            experimental_prune_transitive_deps = False,
+            experimental_strict_associate_dependencies = False,
+            jvm_stdlibs = JavaInfo(
+                compile_jar = _file(env.ctx.attr.jvm_jar),
+                output_jar = _file(env.ctx.attr.jvm_jar),
+            ),
+        ),
+    )
+
+    result = _jvm_deps_utils.jvm_deps(
+        ctx = arrangment.fake_ctx,
+        toolchains = fat_abi_configured_toolchains,
+        associate_deps = arrangment.associate_deps,
+        deps = arrangment.direct_deps,
+    )
+
+    # Without ABI stripping, compile_dep_infos and dep_infos should have the same length
+    env.expect.that_int(len(result.compile_dep_infos)).equals(len(result.deps))
+
+    # Associate ABI jars (which are compile_jars when not stripping) should appear
+    # in compile_dep_infos since no patching occurs
+    associate_abi_jar_path = _file(env.ctx.attr.associate_abi_jar).short_path
+    found_abi_jar = False
+    for info in result.compile_dep_infos:
+        for jar in info.compile_jars.to_list():
+            if jar.short_path == associate_abi_jar_path:
+                found_abi_jar = True
+    env.expect.that_bool(found_abi_jar).equals(True)
+
+def _compile_dep_infos_passthrough_without_abi_stripping_test(name):
+    _abi_test(name, _compile_dep_infos_passthrough_without_abi_stripping_test_impl)
+
+def _dep_infos_preserves_abi_jars_for_propagation_test_impl(env, target):
+    """dep_infos must use original JavaInfos (ABI jars) even when ABI stripping is active.
+
+    This ensures downstream targets see the correct ABI jars in their transitive closure,
+    even though compilation internally uses full class jars for associates.
+    """
+    arrangment = _setup(env, target)
+
+    strict_abi_configured_toolchains = struct(
+        kt = struct(
+            experimental_remove_private_classes_in_abi_jars = True,
+            experimental_prune_transitive_deps = True,
+            experimental_strict_associate_dependencies = True,
+            jvm_stdlibs = JavaInfo(
+                compile_jar = _file(env.ctx.attr.jvm_jar),
+                output_jar = _file(env.ctx.attr.jvm_jar),
+            ),
+        ),
+    )
+
+    result = _jvm_deps_utils.jvm_deps(
+        ctx = arrangment.fake_ctx,
+        toolchains = strict_abi_configured_toolchains,
+        associate_deps = arrangment.associate_deps,
+        deps = arrangment.direct_deps,
+    )
+
+    # dep_infos should contain the ORIGINAL associate JavaInfos (with ABI compile_jars)
+    associate_abi_jar_path = _file(env.ctx.attr.associate_abi_jar).short_path
+
+    found_abi_in_deps = False
+    for info in result.deps:
+        for jar in info.compile_jars.to_list():
+            if jar.short_path == associate_abi_jar_path:
+                found_abi_in_deps = True
+
+    # ABI jars SHOULD be in dep_infos (for downstream propagation)
+    env.expect.that_bool(found_abi_in_deps).equals(True)
+
+def _dep_infos_preserves_abi_jars_for_propagation_test(name):
+    _abi_test(name, _dep_infos_preserves_abi_jars_for_propagation_test_impl)
+
 def jvm_deps_test_suite(name):
     test_suite(
         name,
@@ -445,5 +576,8 @@ def jvm_deps_test_suite(name):
             _transitive_from_associates_test,
             _dep_infos_ordering_test,
             _sourceless_dep_propagation_test,
+            _compile_dep_infos_has_class_jars_with_abi_stripping_test,
+            _compile_dep_infos_passthrough_without_abi_stripping_test,
+            _dep_infos_preserves_abi_jars_for_propagation_test,
         ],
     )
