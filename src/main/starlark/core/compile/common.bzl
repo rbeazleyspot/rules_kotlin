@@ -9,6 +9,7 @@ KtJvmInfo = provider(
         "module_name": "the module name",
         "module_jars": "Jars comprising the module (logical compilation unit), a.k.a. associates",
         "exported_compiler_plugins": "compiler plugins to be invoked by targets depending on this.",
+        "associates_abi_jar": "ABI jar retaining internal symbols for use by associate targets.",
         "srcs": "the source files. [intelij-aspect]",
         "outputs": "output jars produced by this rule. [intelij-aspect]",
         "language_version": "version of kotlin used. [intellij-aspect]",

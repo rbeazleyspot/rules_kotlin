@@ -29,21 +29,33 @@ def _collect_associates(ctx, toolchains, associate):
     """Collects the associate jars from the provided dependency and returns
     them as a depset.
 
-    There are three outcomes for this marco:
-    1. When `experimental_remove_private_classes_in_abi_jars` is enabled and the tag override has not been provided, only the
-        direct java_output CLASS jars will be collected for each associate target. Due to the stripping of internal and private
-        symbols from the compile jar, class jar is the only one that will contain the internal symbols an associate has access to.
-    2. When `experimental_strict_associate_dependencies` is enabled and the tag override has not been provided, only the
+    There are four outcomes for this macro:
+    1. When an associates-abi jar is available (produced when both experimental_treat_internal_as_private_in_abi_jars
+        and experimental_remove_private_classes_in_abi_jars are enabled), the associates-abi jar is used. This jar
+        contains public + internal API (no private), giving associates access to internal symbols while still
+        benefiting from ABI-based caching (implementation changes don't trigger recompilation).
+    2. When `experimental_remove_private_classes_in_abi_jars` is enabled but no associates-abi jar is available,
+        the direct java_output CLASS jars will be collected (legacy behavior).
+    3. When `experimental_strict_associate_dependencies` is enabled and the tag override has not been provided, only the
         direct java_output COMPILE jars will be collected for each associate target.
-    3. When `experimental_strict_associate_dependencies` is disabled, the complete transitive set of compile jars will
-        be collected for each assoicate target.
+    4. When `experimental_strict_associate_dependencies` is disabled, the complete transitive set of compile jars will
+        be collected for each associate target.
     """
     jars_depset = None
     abi_jars_set = _sets.new()
     if (not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and
         toolchains.kt.experimental_remove_private_classes_in_abi_jars):
-        jars_depset = depset(direct = [a.class_jar for a in associate[JavaInfo].java_outputs])
-        _sets.add_all(abi_jars_set, [a.compile_jar for a in associate[JavaInfo].java_outputs])
+        # Prefer the associates-abi jar (public + internal, no private) when available.
+        # This avoids depending on the full class jar, improving cache hit rates.
+        associates_abi_jar = None
+        if _KtJvmInfo in associate:
+            associates_abi_jar = associate[_KtJvmInfo].associates_abi_jar
+        if associates_abi_jar:
+            jars_depset = depset(direct = [associates_abi_jar])
+        else:
+            # Fallback: use class jars for non-Kotlin associates or when associates-abi jar is not produced.
+            jars_depset = depset(direct = [a.class_jar for a in associate[JavaInfo].java_outputs])
+        abi_jars_set = _sets.union(abi_jars_set, _sets.make([a.compile_jar for a in associate[JavaInfo].java_outputs]))
     elif (toolchains.kt.experimental_strict_associate_dependencies and
           "kt_experimental_strict_associate_dependencies_incompatible" not in ctx.attr.tags):
         jars_depset = depset(direct = [a.compile_jar for a in associate[JavaInfo].java_outputs])

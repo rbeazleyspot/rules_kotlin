@@ -442,8 +442,14 @@ def _run_kt_builder_action(
         transitive_runtime_jars,
         plugins,
         outputs,
-        build_kotlin = True):
-    """Creates a KotlinBuilder action invocation."""
+        build_kotlin = True,
+        treat_internal_as_private = None):
+    """Creates a KotlinBuilder action invocation.
+
+    Args:
+        treat_internal_as_private: Override for the treat_internal_as_private_in_abi_jar flag.
+            If None, uses the toolchain setting. If False, explicitly disables it.
+    """
     if not mnemonic:
         fail("Error: A `mnemonic` must be provided for every invocation of `_run_kt_builder_action`!")
 
@@ -515,7 +521,11 @@ def _run_kt_builder_action(
     if not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_remove_private_classes_in_abi_jars == True:
         args.add("--remove_private_classes_in_abi_jar", "true")
 
-    if not "kt_treat_internal_as_private_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_treat_internal_as_private_in_abi_jars == True:
+    _treat_internal_as_private = treat_internal_as_private if treat_internal_as_private != None else (
+        not "kt_treat_internal_as_private_in_abi_plugin_incompatible" in ctx.attr.tags and
+        toolchains.kt.experimental_treat_internal_as_private_in_abi_jars == True
+    )
+    if _treat_internal_as_private:
         if not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_remove_private_classes_in_abi_jars == True:
             args.add("--treat_internal_as_private_in_abi_jar", "true")
         else:
@@ -625,6 +635,7 @@ def kt_jvm_produce_jar_actions(ctx, rule_kind):
     output_jars = outputs_struct.output_jars
     generated_src_jars = outputs_struct.generated_src_jars
     annotation_processing = outputs_struct.annotation_processing
+    associates_abi_jar = outputs_struct.associates_abi_jar
 
     # If this rule has any resources declared setup a zipper action to turn them into a jar.
     if len(ctx.files.resources) > 0:
@@ -707,6 +718,7 @@ def kt_jvm_produce_jar_actions(ctx, rule_kind):
             annotation_processing = annotation_processing,
             additional_generated_source_jars = generated_src_jars,
             all_output_jars = output_jars,
+            associates_abi_jar = associates_abi_jar,
         ),
     )
 
@@ -778,6 +790,15 @@ def _run_kt_java_builder_actions(
     java_infos = []
 
     # Build Kotlin
+    kt_associates_abi_jar = None
+    _should_produce_associates_abi = (
+        not "kt_abi_plugin_incompatible" in ctx.attr.tags and
+        toolchains.kt.experimental_use_abi_jars == True and
+        not "kt_treat_internal_as_private_in_abi_plugin_incompatible" in ctx.attr.tags and
+        toolchains.kt.experimental_treat_internal_as_private_in_abi_jars and
+        not "kt_remove_private_classes_in_abi_plugin_incompatible" in ctx.attr.tags and
+        toolchains.kt.experimental_remove_private_classes_in_abi_jars
+    )
     if has_kt_sources:
         kt_runtime_jar = ctx.actions.declare_file(ctx.label.name + "-kt.jar")
         if not "kt_abi_plugin_incompatible" in ctx.attr.tags and toolchains.kt.experimental_use_abi_jars == True:
@@ -813,6 +834,32 @@ def _run_kt_java_builder_actions(
             mnemonic = "KotlinCompile",
         )
 
+        # Produce a second ABI jar that retains internal symbols for use by associate
+        # targets. This requires a separate builder action because the ABI compiler plugin
+        # can only produce one output directory per compilation. This action uses skipCodeGen
+        # so it only runs the frontend + ABI generation (no codegen), making it cheaper than
+        # a full compilation.
+        if _should_produce_associates_abi:
+            kt_associates_abi_jar = ctx.actions.declare_file(ctx.label.name + "-kt.associates-abi.jar")
+            _run_kt_builder_action(
+                ctx = ctx,
+                rule_kind = rule_kind,
+                toolchains = toolchains,
+                srcs = srcs,
+                generated_src_jars = generated_kapt_src_jars + generated_ksp_src_jars,
+                compile_deps = compile_deps,
+                deps_artifacts = deps_artifacts,
+                annotation_processors = [],
+                transitive_runtime_jars = transitive_runtime_jars,
+                plugins = plugins,
+                outputs = {
+                    "abi_jar": kt_associates_abi_jar,
+                },
+                build_kotlin = True,
+                mnemonic = "KotlinAssociatesAbi",
+                treat_internal_as_private = False,
+            )
+
         compile_jars.append(kt_compile_jar)
         output_jars.append(kt_runtime_jar)
         if not annotation_processors or not srcs.kt:
@@ -836,6 +883,16 @@ def _run_kt_java_builder_actions(
     if srcs.java or generated_kapt_src_jars or srcs.src_jars or ksp_generated_java_src_jars:
         javac_opts = javac_options_to_flags(ctx.attr.javac_opts[JavacOptions] if ctx.attr.javac_opts else toolchains.kt.javac_options)
 
+        # When experimental_remove_private_classes_in_abi_jars is enabled, associate targets'
+        # JavaInfo compile_jars point to ABI jars that have internal symbols stripped. However,
+        # javac may need access to those internal symbols (e.g. from KAPT/KSP generated code).
+        # Create synthetic JavaInfo objects from the associate jars (which may be associates-abi
+        # jars retaining internal symbols) and prepend them to deps so javac resolves them first.
+        associate_java_infos = [
+            JavaInfo(compile_jar = jar, output_jar = jar, neverlink = True)
+            for jar in compile_deps.associate_jars.to_list()
+        ]
+
         # Kotlin takes care of annotation processing. Note that JavaBuilder "discovers"
         # annotation processors in `deps` also.
         if len(srcs.kt) > 0:
@@ -845,7 +902,7 @@ def _run_kt_java_builder_actions(
             source_files = srcs.java,
             source_jars = generated_kapt_src_jars + srcs.src_jars + generated_ksp_src_jars,
             output = ctx.actions.declare_file(ctx.label.name + "-java.jar"),
-            deps = compile_deps.deps + kt_stubs_for_java,
+            deps = associate_java_infos + compile_deps.deps + kt_stubs_for_java,
             java_toolchain = toolchains.java,
             plugins = _plugin_mappers.targets_to_annotation_processors_java_plugin_info(ctx.attr.plugins),
             javac_opts = javac_opts,
@@ -873,6 +930,24 @@ def _run_kt_java_builder_actions(
         action_type = "Abi",
         input_jars = compile_jars,
     )
+
+    # Merge associates ABI jars into final associates compile jar.
+    associates_abi_compile_jar = None
+    if kt_associates_abi_jar:
+        associates_abi_compile_jar = ctx.actions.declare_file(ctx.label.name + ".associates-abi.jar")
+        associates_abi_input_jars = [kt_associates_abi_jar] + [
+            jar
+            for jar in compile_jars
+            if jar != kt_compile_jar
+        ]
+        _fold_jars_action(
+            ctx,
+            rule_kind = rule_kind,
+            toolchains = toolchains,
+            output_jar = associates_abi_compile_jar,
+            action_type = "AssociatesAbi",
+            input_jars = associates_abi_input_jars,
+        )
 
     if toolchains.kt.jvm_emit_jdeps:
         jdeps = []
@@ -910,6 +985,7 @@ def _run_kt_java_builder_actions(
         output_jars = output_jars,
         generated_src_jars = generated_kapt_src_jars + generated_ksp_src_jars,
         annotation_processing = annotation_processing,
+        associates_abi_jar = associates_abi_compile_jar,
     )
 
 def _create_annotation_processing(annotation_processors, ap_class_jar, ap_source_jar):
