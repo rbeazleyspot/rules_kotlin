@@ -26,4 +26,5 @@ class InternalCompilerPlugins constructor(
   val jdeps: KotlinToolchain.CompilerPlugin,
   val kspSymbolProcessingApi: KotlinToolchain.CompilerPlugin,
   val kspSymbolProcessingCommandLine: KotlinToolchain.CompilerPlugin,
+  val associatesAbiGen: KotlinToolchain.CompilerPlugin,
 )
