@@ -17,5 +17,6 @@ KtJvmInfo = provider(
         "annotation_processing": "Generated annotation processing jars. [intellij-aspect]",
         "additional_generated_source_jars": "Returns additional Jars containing generated source files from kapt, ksp, etc. [bazel-bsp-aspect]",
         "all_output_jars": "Returns all the output Jars produced by this rule. [bazel-bsp-aspect]",
+        "associates_abi_jar": "ABI jar that preserves internal visibility for associates.",
     },
 )

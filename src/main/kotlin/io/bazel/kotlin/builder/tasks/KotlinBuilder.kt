@@ -79,6 +79,7 @@ class KotlinBuilder
         ABI_JAR("--abi_jar"),
         ABI_JAR_INTERNAL_AS_PRIVATE("--treat_internal_as_private_in_abi_jar"),
         ABI_JAR_REMOVE_PRIVATE_CLASSES("--remove_private_classes_in_abi_jar"),
+        ABI_JAR_REMOVE_DEBUG_INFO("--remove_debug_info_in_abi_jar"),
         GENERATED_JAVA_SRC_JAR("--generated_java_srcjar"),
         GENERATED_JAVA_STUB_JAR("--kapt_generated_stub_jar"),
         GENERATED_CLASS_JAR("--kapt_generated_class_jar"),
@@ -88,6 +89,7 @@ class KotlinBuilder
         INSTRUMENT_COVERAGE("--instrument_coverage"),
         KSP_GENERATED_JAVA_SRCJAR("--ksp_generated_java_srcjar"),
         BUILD_TOOLS_API("--build_tools_api"),
+        ASSOCIATES_ABI_JAR("--associates_abi_jar"),
       }
     }
 
@@ -167,6 +169,9 @@ class KotlinBuilder
         argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR_REMOVE_PRIVATE_CLASSES)?.let {
           removePrivateClassesInAbiJar = it == "true"
         }
+        argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR_REMOVE_DEBUG_INFO)?.let {
+          removeDebugInfo = it == "true"
+        }
         argMap.optionalSingle(KotlinBuilderFlags.BUILD_TOOLS_API)?.let {
           buildToolsApi = it == "true"
         }
@@ -212,6 +217,7 @@ class KotlinBuilder
             generatedJavaStubJar = this
           }
           argMap.optionalSingle(KotlinBuilderFlags.ABI_JAR)?.let { abijar = it }
+          argMap.optionalSingle(KotlinBuilderFlags.ASSOCIATES_ABI_JAR)?.let { associatesAbiJar = it }
           argMap.optionalSingle(KotlinBuilderFlags.GENERATED_CLASS_JAR)?.let {
             generatedClassJar = it
           }
@@ -234,6 +240,13 @@ class KotlinBuilder
               workingDir
                 .resolveNewDirectories(
                   getOutputDirPath(moduleName, "abi_classes"),
+                ).toString()
+          }
+          if (argMap.hasAll(KotlinBuilderFlags.ASSOCIATES_ABI_JAR)) {
+            associatesAbiClasses =
+              workingDir
+                .resolveNewDirectories(
+                  getOutputDirPath(moduleName, "associates_abi_classes"),
                 ).toString()
           }
           generatedClasses =

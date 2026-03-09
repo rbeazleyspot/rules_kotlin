@@ -39,6 +39,7 @@ class KotlinToolchain private constructor(
   val jdepsGen: CompilerPlugin,
   val kspSymbolProcessingApi: CompilerPlugin,
   val kspSymbolProcessingCommandLine: CompilerPlugin,
+  val associatesAbiGen: CompilerPlugin,
 ) {
   companion object {
     private val JVM_ABI_PLUGIN by lazy {
@@ -73,6 +74,13 @@ class KotlinToolchain private constructor(
       BazelRunFiles
         .resolveVerifiedFromProperty(
           "@rules_kotlin...jdeps-gen",
+        ).toPath()
+    }
+
+    private val ASSOCIATES_ABI_GEN_PLUGIN by lazy {
+      BazelRunFiles
+        .resolveVerifiedFromProperty(
+          "@rules_kotlin...associates-abi-gen",
         ).toPath()
     }
 
@@ -161,6 +169,7 @@ class KotlinToolchain private constructor(
         KOTLINX_SERIALIZATION_CORE_JVM.toFile(),
         KOTLINX_SERIALIZATION_JSON.toFile(),
         KOTLINX_SERIALIZATION_JSON_JVM.toFile(),
+        ASSOCIATES_ABI_GEN_PLUGIN.verified().absoluteFile,
       )
 
     @JvmStatic
@@ -178,6 +187,7 @@ class KotlinToolchain private constructor(
       kotlinxSerializationCoreJvm: File,
       kotlinxSerializationJson: File,
       kotlinxSerializationJsonJvm: File,
+      associatesAbiGenFile: File,
     ): KotlinToolchain =
       KotlinToolchain(
         listOf(
@@ -192,6 +202,7 @@ class KotlinToolchain private constructor(
           jdepsGenFile,
           kspSymbolProcessingApi,
           kspSymbolProcessingCommandLine,
+          associatesAbiGenFile,
           kotlinxSerializationCoreJvm,
           kotlinxSerializationJson,
           kotlinxSerializationJsonJvm,
@@ -225,6 +236,11 @@ class KotlinToolchain private constructor(
           CompilerPlugin(
             kspSymbolProcessingCommandLine.absolutePath,
             "com.google.devtools.ksp.symbol-processing",
+          ),
+        associatesAbiGen =
+          CompilerPlugin(
+            associatesAbiGenFile.path,
+            "io.bazel.kotlin.plugin.ExperimentalAssociatesAbiGen",
           ),
       )
   }
@@ -266,6 +282,7 @@ class KotlinToolchain private constructor(
       jdepsGen,
       kspSymbolProcessingApi,
       kspSymbolProcessingCommandLine,
+      associatesAbiGen,
     )
 
   data class CompilerPlugin(
