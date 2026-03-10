@@ -50,7 +50,8 @@ public interface KotlinBuilderComponent {
             return new InternalCompilerPlugins(
                     toolchain.getJvmAbiGen(), toolchain.getSkipCodeGen(), toolchain.getKapt3Plugin(), toolchain.getJdepsGen(),
                     toolchain.getKspSymbolProcessingApi(),
-                    toolchain.getKspSymbolProcessingCommandLine());
+                    toolchain.getKspSymbolProcessingCommandLine(),
+                    toolchain.getAssociatesAbiGen());
         }
     }
 }
