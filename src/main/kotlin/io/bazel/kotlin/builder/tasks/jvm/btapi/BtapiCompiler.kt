@@ -220,12 +220,22 @@ class BtapiCompiler(
       args[JvmCompilerArguments.CLASSPATH] = classpath.joinToString(File.pathSeparator)
     }
 
-    // Friend paths (for internal visibility)
-    if (task.info.friendPathsList.isNotEmpty()) {
-      args[JvmCompilerArguments.X_FRIEND_PATHS] =
-        task.info.friendPathsList
-          .map { File(it).absolutePath }
-          .toTypedArray()
+    task.info.friendPathsList
+      .map { Path.of(it).toAbsolutePath().toString() }
+      .takeIf { it.isNotEmpty() }
+      ?.let {
+        pathArgumentStrings.add("-Xfriend-paths=${it.joinToString(File.pathSeparator)}")
+      }
+
+    if (pathArgumentStrings.isNotEmpty()) {
+      try {
+        args.applyArgumentStrings(pathArgumentStrings)
+      } catch (e: CompilerArgumentsParseException) {
+        throw IllegalArgumentException(
+          "Invalid classpath or friend path arguments: ${e.message}",
+          e,
+        )
+      }
     }
   }
 
