@@ -179,7 +179,7 @@ class KotlinToolchain private constructor(
   )
 
   open class KotlincInvoker internal constructor(
-    toolchain: KotlinToolchain,
+    classLoader: ClassLoader,
     clazz: String,
   ) {
     private val compiler: Any
@@ -187,9 +187,9 @@ class KotlinToolchain private constructor(
     private val getCodeMethod: Method
 
     init {
-      val compilerClass = toolchain.classLoader.loadClass(clazz)
+      val compilerClass = classLoader.loadClass(clazz)
       val exitCodeClass =
-        toolchain.classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
+        classLoader.loadClass("org.jetbrains.kotlin.cli.common.ExitCode")
 
       compiler = compilerClass.getConstructor().newInstance()
       execMethod =
