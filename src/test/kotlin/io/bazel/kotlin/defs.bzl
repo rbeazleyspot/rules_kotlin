@@ -38,14 +38,11 @@ def kt_rules_test(name, **kwargs):
         "//kotlin/compiler:jvm-abi-gen",
         "//kotlin/compiler:kotlin-compiler",
         "//kotlin/compiler:kotlin-stdlib",
-        "//kotlin/compiler:kotlin-stdlib-jdk7",
-        "//kotlin/compiler:kotlin-stdlib-jdk8",
         "//kotlin/compiler:kotlin-annotation-processing",
-        "@rules_kotlin//kotlin/compiler:kotlin-reflect",
-        "@kotlinx_serialization_core_jvm//file",
-        "@kotlinx_serialization_json//file",
-        "@kotlinx_serialization_json_jvm//file",
-        "@kotlin_build_tools_impl//file",
+        "//kotlin/compiler:kotlin-reflect",
+        "//kotlin/compiler:kotlinx-serialization-core-jvm",
+        "//kotlin/compiler:kotlinx-serialization-json-jvm",
+        "//kotlin/compiler:kotlin-build-tools-impl",
     ] + args["data"]:
         if dep not in args["data"]:
             args["data"].append(dep)
