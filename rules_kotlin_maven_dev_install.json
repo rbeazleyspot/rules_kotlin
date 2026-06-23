@@ -23,7 +23,7 @@
     "javax.inject:javax.inject": -297932879,
     "junit:junit": 373369075,
     "org.apache.commons:commons-compress": -1310119682,
-    "org.jetbrains.kotlin:kotlin-metadata-jvm": 261759038,
+    "org.jetbrains.kotlin:kotlin-metadata-jvm": 1824682927,
     "repositories": 582576641
   },
   "__RESOLVED_ARTIFACTS_HASH": {
@@ -44,7 +44,7 @@
     "com.google.code.gson:gson": -1575757252,
     "com.google.code.gson:gson:jar:sources": -350708227,
     "com.google.dagger:dagger": 875179613,
-    "com.google.dagger:dagger-compiler": -1789364175,
+    "com.google.dagger:dagger-compiler": 286140352,
     "com.google.dagger:dagger-compiler:jar:sources": 671838778,
     "com.google.dagger:dagger-producers": 701525829,
     "com.google.dagger:dagger-producers:jar:sources": 118085986,
@@ -116,8 +116,8 @@
     "org.checkerframework:checker-qual:jar:sources": -309007815,
     "org.hamcrest:hamcrest-core": 649657847,
     "org.hamcrest:hamcrest-core:jar:sources": -1646511374,
-    "org.jetbrains.kotlin:kotlin-metadata-jvm": -156611443,
-    "org.jetbrains.kotlin:kotlin-metadata-jvm:jar:sources": 2087143251,
+    "org.jetbrains.kotlin:kotlin-metadata-jvm": 406671630,
+    "org.jetbrains.kotlin:kotlin-metadata-jvm:jar:sources": 1968961552,
     "org.jetbrains.kotlin:kotlin-reflect": 261707901,
     "org.jetbrains.kotlin:kotlin-reflect:jar:sources": 1553214411,
     "org.jetbrains.kotlin:kotlin-stdlib": -596863732,
@@ -454,10 +454,10 @@
     },
     "org.jetbrains.kotlin:kotlin-metadata-jvm": {
       "shasums": {
-        "jar": "2de0a3133f1d4f640de4977309efb422b0a80331b4ff6dd0f8f52489c2ce17a9",
-        "sources": "5ddad3d64871b6dbfdab3b5a65adb5541dcc6f71f5ef67036dfab4f7796b2e67"
+        "jar": "17264b9690feed34aa8b8e7d556fb2e7951f6800462f117243fba96201014f7d",
+        "sources": "63bf4de03fec4635a9121363fbea5297b8b90ce9e2a846ce84095bf4993ed286"
       },
-      "version": "2.4.0-RC"
+      "version": "2.3.20"
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
       "shasums": {
@@ -536,7 +536,7 @@
     "org.jetbrains.kotlin:kotlin-stdlib:1.9.24": "org.jetbrains.kotlin:kotlin-stdlib:2.1.21",
     "org.jetbrains.kotlin:kotlin-stdlib:2.0.0": "org.jetbrains.kotlin:kotlin-stdlib:2.1.21",
     "org.jetbrains.kotlin:kotlin-stdlib:2.1.20": "org.jetbrains.kotlin:kotlin-stdlib:2.1.21",
-    "org.jetbrains.kotlin:kotlin-stdlib:2.4.0-RC": "org.jetbrains.kotlin:kotlin-stdlib:2.1.21",
+    "org.jetbrains.kotlin:kotlin-stdlib:2.3.20": "org.jetbrains.kotlin:kotlin-stdlib:2.1.21",
     "org.ow2.asm:asm:9.3": "org.ow2.asm:asm:9.8"
   },
   "dependencies": {

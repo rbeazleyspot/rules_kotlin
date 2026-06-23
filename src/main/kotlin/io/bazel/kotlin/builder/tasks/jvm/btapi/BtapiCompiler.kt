@@ -17,7 +17,7 @@ package io.bazel.kotlin.builder.tasks.jvm.btapi
 
 import io.bazel.kotlin.builder.tasks.jvm.X_FRIENDS_PATH_SEPARATOR
 import io.bazel.kotlin.model.JvmCompilationTask
-import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration
+import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.CompilationResult
 import org.jetbrains.kotlin.buildtools.api.CompilerArgumentsParseException
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
@@ -300,15 +300,16 @@ class BtapiCompiler(
         icWorkingDir,
         SourcesChanges.ToBeCalculated,
         task.inputs.classpathSnapshotsList.map(Path::of),
+        icWorkingDir.resolve("shrunk-classpath-snapshot"),
       )
 
-    icConfiguration[BaseIncrementalCompilationConfiguration.ROOT_PROJECT_DIR] =
+    icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.ROOT_PROJECT_DIR] =
       Paths.get("").toAbsolutePath()
-    icConfiguration[BaseIncrementalCompilationConfiguration.MODULE_BUILD_DIR] =
+    icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.MODULE_BUILD_DIR] =
       Path.of(task.directories.classes).parent ?: Path.of(task.directories.classes)
-    icConfiguration[BaseIncrementalCompilationConfiguration.FORCE_RECOMPILATION] =
+    icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.FORCE_RECOMPILATION] =
       forceRecompilation
-    icConfiguration[BaseIncrementalCompilationConfiguration.OUTPUT_DIRS] =
+    icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.OUTPUT_DIRS] =
       setOf(Path.of(task.directories.classes), icWorkingDir)
 
     operationBuilder[INCREMENTAL_COMPILATION] = icConfiguration.build()
